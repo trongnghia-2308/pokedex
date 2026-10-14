@@ -4,9 +4,48 @@ let allPokemon = [];
 
 // Thông tin bảng tính của bạn
 const SHEET_ID = '1Pif5ZnukgSBEfVhDCXIaVc8m7PxxKtV8p7TVl7CA';
-const SHEET_TITLE = 'Trang tính1';
-// API xuất bảng tính dưới dạng tệp CSV để đọc dữ liệu chuẩn xác nhất
-const FULL_URL = `https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_TITLE}`;
+// 🔴 Thay thế hoàn toàn đoạn code từ dòng 5 đến dòng 9 bằng đoạn này:
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTFijEIMMrUKZ8t2RYM4SLQu123xG_y7xC6X9V_Hjucf8yfc3zwpM_3B7oAMCOOqZO_rZ5c5YsPjQU/pub?gid=0&single=true&output=csv';
+
+const fetchPokemonFromSheet = async () => {
+    try {
+        const res = await fetch(CSV_URL);
+        const csvText = await res.text();
+        
+        // Tách dữ liệu theo hàng
+        const lines = csvText.split('\n');
+        
+        allPokemon = lines.slice(1).map(line => {
+            // Tách các cột an toàn theo dấu phẩy
+            const cells = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"\r?$/g, '').trim());
+            
+            if (cells.length < 2 || !cells[1]) return null;
+
+            let rawImg = cells[0];
+            if (rawImg.toUpperCase().includes('IMAGE')) {
+                const match = rawImg.match(/"([^"]+)"/);
+                rawImg = match ? match[1] : '';
+            }
+
+            return {
+                imgUrl: rawImg,
+                name: cells[1],
+                type1: cells[2],
+                type2: cells[3],
+                ability1: cells[4],
+                ability2: cells[5],
+                tier: cells[6],
+                hp: cells[7] || 0,
+                atk: cells[8] || 0,
+                def: cells[9] || 0,
+                spa: cells[10] || 0,
+                spd: cells[11] || 0,
+                spe: cells[12] || 0
+            };
+        }).filter(p => p !== null);
+
+        displayPokemonTable(allPokemon);
+
 
 const fetchPokemonFromSheet = async () => {
     try {
