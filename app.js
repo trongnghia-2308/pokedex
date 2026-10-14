@@ -2,10 +2,10 @@ const container = document.getElementById('pokedex-container');
 const searchInput = document.getElementById('search');
 let allPokemon = [];
 
-// Đường dẫn CSV từ Google Sheet của bạn
+// Đường dẫn API CSV trích xuất trực tiếp từ Google Sheet
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTFijEIMMrUKZ8t2RYM4SLQu123xG_y7xC6X9V_Hjucf8yfc3zwpM_3B7oAMCOOqZO_rZ5c5YsPjQU/pub?gid=0&single=true&output=csv';
 
-// Hàm tự động phân tách các cột trong hàng CSV chính xác tuyệt đối
+// Hàm phân tách chuẩn các cột dữ liệu theo dấu phẩy, xử lý an toàn dấu ngoặc kép
 const parseCSVLine = (text) => {
     let p = '', r = [];
     let q = false;
@@ -29,17 +29,17 @@ const fetchPokemonFromSheet = async () => {
         const res = await fetch(CSV_URL);
         const csvText = await res.text();
         
-        // Tách dữ liệu thành từng dòng (xử lý cả xuống dòng Windows và Mac)
+        // Tách dữ liệu thành từng dòng text (Sửa lỗi cú pháp)
         const lines = csvText.split(\(/\r\)?\n/);
         
-        // Duyệt từ hàng số 2 trở đi (bỏ qua hàng tiêu đề)
+        // Bỏ dòng tiêu đề, lặp dữ liệu từ dòng số 2
         allPokemon = lines.slice(1).map(line => {
             if (!line.trim()) return null;
             
             const cells = parseCSVLine(line);
             if (cells.length < 2 || !cells[1]) return null;
 
-            // Xử lý bóc tách link ảnh từ hàm =IMAGE("link")
+            // Xử lý bóc tách link ảnh sạch từ hàm toán học =IMAGE("link")
             let rawImg = cells[0] || '';
             if (rawImg.toUpperCase().includes('IMAGE')) {
                 const match = rawImg.match(/"([^"]+)"/);
@@ -65,12 +65,12 @@ const fetchPokemonFromSheet = async () => {
 
         displayPokemonTable(allPokemon);
     } catch (error) {
-        console.error("Lỗi đồng bộ dữ liệu:", error);
-        container.innerHTML = `<p style="text-align:center; color:red; padding:20px;">Lỗi kết nối. Không thể nạp bảng dữ liệu Pokémon.</p>`;
+        console.error("Lỗi nạp bảng dữ liệu:", error);
+        container.innerHTML = `<p style="text-align:center; color:red; padding:20px;">Không thể kết nối máy chủ Google Sheet.</p>`;
     }
 };
 
-// Hàm tạo bảng hiển thị giao diện Smogon
+// Hàm vẽ giao diện bảng Smogon chuẩn
 const displayPokemonTable = (pokemonList) => {
     if (pokemonList.length === 0) {
         container.innerHTML = '<p style="text-align:center; padding:20px;">Không tìm thấy Pokémon phù hợp.</p>';
@@ -98,19 +98,19 @@ const displayPokemonTable = (pokemonList) => {
     `;
 
     tableHTML += pokemonList.map((pokemon) => {
-        // Tạo nhãn hệ
+        // Huy hiệu màu hệ
         let typesHTML = `<span class="type-badge ${pokemon.type1.toLowerCase()}">${pokemon.type1}</span>`;
         if (pokemon.type2 && pokemon.type2 !== '-' && pokemon.type2 !== '') {
             typesHTML += ` <span class="type-badge ${pokemon.type2.toLowerCase()}">${pokemon.type2}</span>`;
         }
 
-        // Tạo nhãn kỹ năng
+        // Khung hiển thị Kỹ năng
         let abilitiesHTML = `<div style="font-weight:500;">${pokemon.ability1}</div>`;
         if (pokemon.ability2 && pokemon.ability2 !== '-' && pokemon.ability2 !== '') {
             abilitiesHTML += `<div style="color: #777; font-size: 0.8rem; margin-top:2px;">${pokemon.ability2} (H)</div>`;
         }
 
-        // Kiểm tra link ảnh
+        // Link ảnh gốc hoặc ảnh thay thế nếu link Excel lỗi
         const finalImg = pokemon.imgUrl.startsWith('http') ? pokemon.imgUrl : 'https://placeholder.com?';
 
         return `
@@ -138,7 +138,7 @@ const displayPokemonTable = (pokemonList) => {
     container.innerHTML = tableHTML;
 };
 
-// Bộ lọc tìm kiếm ô tìm kiếm
+// Tìm kiếm lọc dữ liệu thời gian thực
 searchInput.addEventListener('input', (e) => {
     const value = e.target.value.toLowerCase().trim();
     const filtered = allPokemon.filter(p => 
