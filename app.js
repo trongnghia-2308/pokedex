@@ -2,70 +2,59 @@ const container = document.getElementById('pokedex-container');
 const searchInput = document.getElementById('search');
 let allPokemon = [];
 
-// Cấu hình ID và Tên Tab Sheet từ ảnh của bạn
+// Thông tin bảng tính của bạn
 const SHEET_ID = '1Pif5ZnukgSBEfVhDCXIaVc8m7PxxKtV8p7TVl7CA';
 const SHEET_TITLE = 'Trang tính1';
-const FULL_URL = `https://google.com{SHEET_ID}/gviz/tq?sheet=${SHEET_TITLE}`;
+// API xuất bảng tính dưới dạng tệp CSV để đọc dữ liệu chuẩn xác nhất
+const FULL_URL = `https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_TITLE}`;
 
 const fetchPokemonFromSheet = async () => {
     try {
         const res = await fetch(FULL_URL);
-        const text = await res.text();
+        const csvText = await res.text();
         
-        // Cắt chuỗi để đưa về định dạng JSON chuẩn
-        const jsonData = JSON.parse(text.substring(47, text.length - 2));
-        const rows = jsonData.table.rows;
-
-        allPokemon = rows.map((row, index) => {
-            // Bỏ qua dòng tiêu đề đầu tiên (dòng 1)
-            if (index === 0) return null;
-
-            const cells = row.c;
+        // Tách dữ liệu theo từng hàng
+        const lines = csvText.split('\n');
+        
+        // Duyệt qua từng hàng dữ liệu (bỏ qua hàng tiêu đề đầu tiên)
+        allPokemon = lines.slice(1).map(line => {
+            // Tách các cột dựa trên dấu phẩy (xử lý an toàn chuỗi nằm trong ngoặc kép)
+            const cells = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*\()/).map(c => c.replace(/^"\vert{}"\r?\)/g, '').trim());
             
-            // Hàm đọc giá trị an toàn chống crash ứng dụng khi gặp ô trống
-            const val = (idx, isNumber = false) => {
-                if (cells && cells[idx] && cells[idx].v !== null && cells[idx].v !== undefined) {
-                    return cells[idx].v;
-                }
-                return isNumber ? 0 : '';
-            };
+            if (cells.length < 2 || !cells[1]) return null;
 
-            // Hàm xử lý riêng cho cột Ảnh có chứa hàm =IMAGE("link")
-            let imgLink = '';
-            if (cells && cells[0]) {
-                // Nếu Google Sheet trả về dạng object chứa thuộc tính f (formula)
-                if (cells[0].f) {
-                    const match = cells[0].f.match(/"([^"]+)"/);
-                    imgLink = match ? match[1] : cells[0].v;
-                } else {
-                    imgLink = cells[0].v || '';
-                }
+            // Xử lý trích xuất link ảnh sạch nếu ô Image chứa công thức =IMAGE("link")
+            let rawImg = cells[0];
+            if (rawImg.toUpperCase().includes('IMAGE')) {
+                const match = rawImg.match(/"([^"]+)"/);
+                rawImg = match ? match[1] : '';
             }
 
             return {
-                imgUrl: imgLink,
-                name: val(1),
-                type1: val(2),
-                type2: val(3),
-                ability1: val(4),
-                ability2: val(5),
-                tier: val(6),
-                hp: val(7, true),
-                atk: val(8, true),
-                def: val(9, true),
-                spa: val(10, true),
-                spd: val(11, true),
-                spe: val(12, true)
+                imgUrl: rawImg,
+                name: cells[1],
+                type1: cells[2],
+                type2: cells[3],
+                ability1: cells[4],
+                ability2: cells[5],
+                tier: cells[6],
+                hp: cells[7] || 0,
+                atk: cells[8] || 0,
+                def: cells[9] || 0,
+                spa: cells[10] || 0,
+                spd: cells[11] || 0,
+                spe: cells[12] || 0
             };
-        }).filter(p => p !== null && p.name !== ''); // Lọc bỏ hàng tiêu đề và hàng trống
+        }).filter(p => p !== null);
 
         displayPokemonTable(allPokemon);
     } catch (error) {
-        console.error("Lỗi dữ liệu:", error);
-        container.innerHTML = `<p style="text-align:center; color:red; padding:20px;">Lỗi: Không thể kết nối với Google Sheet. Vui lòng kiểm tra lại cấu hình nút 'Chia sẻ' công khai.</p>`;
+        console.error("Lỗi đồng bộ hệ thống:", error);
+        container.innerHTML = `<p style="text-align:center; color:red; padding:20px;">Lỗi kết nối. Không thể nạp bảng dữ liệu Pokémon.</p>`;
     }
 };
 
+// Hàm tạo bảng giao diện Smogon
 const displayPokemonTable = (pokemonList) => {
     if (pokemonList.length === 0) {
         container.innerHTML = '<p style="text-align:center; padding:20px;">Không tìm thấy Pokémon phù hợp.</p>';
@@ -93,26 +82,26 @@ const displayPokemonTable = (pokemonList) => {
     `;
 
     tableHTML += pokemonList.map((pokemon) => {
-        // Xử lý Huy hiệu hệ
+        // Tạo nhãn màu cho Hệ 1 và Hệ 2
         let typesHTML = `<span class="type-badge ${pokemon.type1.toLowerCase()}">${pokemon.type1}</span>`;
-        if (pokemon.type2) {
+        if (pokemon.type2 && pokemon.type2 !== '-' && pokemon.type2 !== '') {
             typesHTML += ` <span class="type-badge ${pokemon.type2.toLowerCase()}">${pokemon.type2}</span>`;
         }
 
-        // Xử lý ô kỹ năng
+        // Tạo danh sách hiển thị Kỹ năng chính và Kỹ năng ẩn
         let abilitiesHTML = `<div style="font-weight:500;">${pokemon.ability1}</div>`;
-        if (pokemon.ability2) {
+        if (pokemon.ability2 && pokemon.ability2 !== '-' && pokemon.ability2 !== '') {
             abilitiesHTML += `<div style="color: #777; font-size: 0.8rem; margin-top:2px;">${pokemon.ability2} (H)</div>`;
         }
 
-        // Tạo link ảnh dự phòng nếu cột Image trong Sheet là text hoặc link lỗi
-        const finalImg = pokemon.imgUrl.startsWith('http') ? pokemon.imgUrl : 'https://placeholder.com';
+        // Đường dẫn ảnh mặc định nếu link trong ô Excel bị lỗi
+        const finalImg = pokemon.imgUrl.startsWith('http') ? pokemon.imgUrl : 'https://placeholder.com?';
 
         return `
             <tr>
                 <td>
                     <div class="poke-info">
-                        <img src="${finalImg}" alt="${pokemon.name}" onerror="this.src='https://placeholder.com'">
+                        <img src="${finalImg}" alt="${pokemon.name}" onerror="this.src='https://placeholder.com?'">
                         <span style="text-transform: capitalize;">${pokemon.name}</span>
                     </div>
                 </td>
@@ -133,7 +122,7 @@ const displayPokemonTable = (pokemonList) => {
     container.innerHTML = tableHTML;
 };
 
-// Tìm kiếm nâng cao
+// Ô tìm kiếm đa năng theo Tên, Hệ hoặc Phân hạng Tier
 searchInput.addEventListener('input', (e) => {
     const value = e.target.value.toLowerCase().trim();
     const filtered = allPokemon.filter(p => 
