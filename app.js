@@ -2,10 +2,10 @@ const container = document.getElementById('pokedex-container');
 const searchInput = document.getElementById('search');
 let allPokemon = [];
 
-// Đường dẫn API CSV trích xuất trực tiếp từ Google Sheet
+// Đường dẫn API CSV trích xuất trực tiếp từ Google Sheet của bạn
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTFijEIMMrUKZ8t2RYM4SLQu123xG_y7xC6X9V_Hjucf8yfc3zwpM_3B7oAMCOOqZO_rZ5c5YsPjQU/pub?gid=0&single=true&output=csv';
 
-// Hàm phân tách chuẩn các cột dữ liệu theo dấu phẩy, xử lý an toàn dấu ngoặc kép
+// Hàm phân tách các cột dữ liệu theo dấu phẩy, xử lý an toàn dấu ngoặc kép
 const parseCSVLine = (text) => {
     let p = '', r = [];
     let q = false;
@@ -29,15 +29,15 @@ const fetchPokemonFromSheet = async () => {
         const res = await fetch(CSV_URL);
         const csvText = await res.text();
         
-        // Tách dữ liệu thành từng dòng text (Sửa lỗi cú pháp)
-        const lines = csvText.split(\(/\r\)?\n/);
+        // Tách dữ liệu thành từng dòng text bằng cách cắt chuỗi cơ bản
+        const lines = csvText.split('\n');
         
         // Bỏ dòng tiêu đề, lặp dữ liệu từ dòng số 2
         allPokemon = lines.slice(1).map(line => {
             if (!line.trim()) return null;
             
             const cells = parseCSVLine(line);
-            if (cells.length < 2 || !cells[1]) return null;
+            if (cells.length < 2 || !cells) return null;
 
             // Xử lý bóc tách link ảnh sạch từ hàm toán học =IMAGE("link")
             let rawImg = cells[0] || '';
